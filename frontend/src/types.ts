@@ -11,7 +11,7 @@ export interface Node {
   id: number;
   x: number;
   y: number;
-  dist?: number; // For Dijkstra
+  dist?: number; 
 }
 
 export interface Edge {
@@ -40,11 +40,11 @@ export interface ToastMessage {
   type: 'success' | 'info';
 }
 
-// ✅ UPDATED INTERFACE: Added updateStats callback
+// ✅ UPDATED: Added checkStop callback
 export interface GraphRef {
   reset: () => void;
   generateRandomGraph: () => void;
-  runBFS: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void) => Promise<void>;
-  runDijkstra: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void) => Promise<void>;
-  runPrim: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void) => Promise<void>;
+  runBFS: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void, checkStop: () => void) => Promise<void>;
+  runDijkstra: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void, checkStop: () => void) => Promise<void>;
+  runPrim: (speed: number, logStep: (msg: string) => void, updateStats: (c: number, s: number) => void, checkStop: () => void) => Promise<void>;
 }

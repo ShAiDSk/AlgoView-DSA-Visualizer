@@ -27,7 +27,6 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
         const newNodes: Node[] = [];
         const newEdges: Edge[] = [];
         const count = 6 + Math.floor(Math.random() * 5); 
-        
         const usedPositions = new Set<string>();
         for(let i=0; i<count; i++) {
             let x, y, key;
@@ -43,16 +42,13 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
             usedPositions.add(key);
             newNodes.push({ id: i, x, y, dist: Infinity });
         }
-
         for(let i=0; i<count; i++) {
             const connections = 1 + Math.floor(Math.random() * 2);
             for(let j=0; j<connections; j++) {
                 const target = Math.floor(Math.random() * count);
                 if (target !== i) {
                     const exists = newEdges.some(e => (e.from === i && e.to === target) || (e.from === target && e.to === i));
-                    if (!exists) {
-                        newEdges.push({ from: i, to: target, weight: Math.floor(Math.random() * 9) + 1 });
-                    }
+                    if (!exists) newEdges.push({ from: i, to: target, weight: Math.floor(Math.random() * 9) + 1 });
                 }
             }
         }
@@ -64,14 +60,12 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
         setVisitedNodes([]);
     },
 
-    // --- ALGORITHMS WITH STATS ---
+    // --- ALGORITHMS (Now checking stop signal) ---
 
-    runBFS: async (speed, logStep, updateStats) => {
+    runBFS: async (speed, logStep, updateStats, checkStop) => {
       if (nodes.length === 0) return;
       logStep("🚀 Starting BFS...");
-      
-      let comps = 0; // Neighbor Checks
-      let swaps = 0; // Nodes Visited
+      let comps = 0, swaps = 0;
 
       const adj: Record<number, number[]> = {};
       nodes.forEach(n => adj[n.id] = []);
@@ -84,6 +78,7 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
       updateStats(comps, swaps);
 
       while (queue.length > 0) {
+        checkStop(); // <--- STOP CHECK
         const curr = queue.shift()!;
         logStep(`🔍 Visiting Node ${curr}`);
         setHighlightedNodes([curr]);
@@ -91,12 +86,13 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
 
         if (adj[curr]) {
             for (const neighbor of adj[curr].sort((a,b)=>a-b)) {
-                comps++; // Check neighbor
+                checkStop(); // <--- STOP CHECK
+                comps++; 
                 if (!visited.has(neighbor)) {
                     visited.add(neighbor);
                     queue.push(neighbor);
                     setVisitedNodes(Array.from(visited));
-                    swaps++; // Mark visited
+                    swaps++; 
                     
                     const edgeIdx = edges.findIndex(e => (e.from === curr && e.to === neighbor) || (e.from === neighbor && e.to === curr));
                     if (edgeIdx !== -1) setHighlightedEdges(prev => [...prev, edgeIdx]);
@@ -105,7 +101,7 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
                     updateStats(comps, swaps);
                     await wait(800 - speed * 6);
                 } else {
-                    updateStats(comps, swaps); // Update check count even if visited
+                    updateStats(comps, swaps); 
                 }
             }
         }
@@ -114,12 +110,10 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
       logStep("✅ BFS Complete!");
     },
 
-    runDijkstra: async (speed, logStep, updateStats) => {
+    runDijkstra: async (speed, logStep, updateStats, checkStop) => {
         if (nodes.length === 0) return;
         logStep("🚀 Starting Dijkstra...");
-        
-        let comps = 0; // Edge Relax Check
-        let swaps = 0; // Distance Updates
+        let comps = 0, swaps = 0;
 
         const dist: Record<number, number> = {};
         nodes.forEach(n => { dist[n.id] = Infinity; });
@@ -130,6 +124,7 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
         const visited = new Set<number>();
 
         while (pq.length > 0) {
+            checkStop(); // <--- STOP CHECK
             pq.sort((a, b) => a.val - b.val);
             const { id: u, val: d } = pq.shift()!;
             
@@ -143,18 +138,16 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
 
             const neighbors = edges.filter(e => e.from === u || e.to === u);
             for (const edge of neighbors) {
+                checkStop(); // <--- STOP CHECK
                 comps++;
                 const v = edge.from === u ? edge.to : edge.from;
-                if (visited.has(v)) {
-                     updateStats(comps, swaps);
-                     continue;
-                }
+                if (visited.has(v)) { updateStats(comps, swaps); continue; }
 
                 const newDist = d + edge.weight;
                 if (newDist < dist[v]) {
                     dist[v] = newDist;
                     pq.push({ id: v, val: newDist });
-                    swaps++; // Successful update
+                    swaps++; 
                     
                     logStep(`⚡ Update ${u}->${v} (New Dist: ${newDist})`);
                     setNodes(curr => curr.map(n => n.id === v ? { ...n, dist: newDist } : n));
@@ -172,20 +165,19 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
         logStep("✅ Dijkstra Complete!");
     },
 
-    runPrim: async (speed, logStep, updateStats) => {
+    runPrim: async (speed, logStep, updateStats, checkStop) => {
         if (nodes.length === 0) return;
         logStep("🚀 Starting Prim's MST...");
-        
-        let comps = 0; // Edge Weight Checks
-        let swaps = 0; // MST Additions
+        let comps = 0, swaps = 0;
 
         const visited = new Set<number>([nodes[0].id]);
         setVisitedNodes([nodes[0].id]);
         const mstEdges: number[] = []; 
-        swaps++; // First node
+        swaps++; 
         updateStats(comps, swaps);
         
         while (visited.size < nodes.length) {
+            checkStop(); // <--- STOP CHECK
             let minEdge: Edge | null = null;
             let minWeight = Infinity;
             let minEdgeIdx = -1;
@@ -203,14 +195,13 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
                     }
                 }
             }
-            // Batch update stats for the loop
             updateStats(comps, swaps);
 
             if (minEdge) {
                 const newNode = visited.has(minEdge.from) ? minEdge.to : minEdge.from;
                 visited.add(newNode);
                 mstEdges.push(minEdgeIdx);
-                swaps++; // Node added to MST
+                swaps++; 
 
                 logStep(`🔗 Connected Edge ${minEdge.from}-${minEdge.to}`);
                 setVisitedNodes(Array.from(visited));
@@ -261,7 +252,7 @@ const GraphCanvas = forwardRef<GraphRef, {}>((_, ref) => {
           const midX = (n1.x + n2.x) / 2;
           const midY = (n1.y + n2.y) / 2;
           return (
-            <g key={idx}>
+            <g key={`${edge.from}-${edge.to}`}>
                 <motion.line initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                 x1={n1.x} y1={n1.y} x2={n2.x} y2={n2.y}
                 stroke={isHigh ? "#facc15" : "#334155"} strokeWidth={isHigh ? 4 : 2} />
