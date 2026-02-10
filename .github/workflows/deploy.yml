@@ -3,44 +3,39 @@ name: Deploy to ProFreeHost
 on:
   push:
     branches:
-      - main  # Or 'master' if your branch is named master
+      - main  # Change to 'master' if your main branch is named master
 
 jobs:
   web-deploy:
     name: 🎉 Build & Deploy
     runs-on: ubuntu-latest
     steps:
-      # 1. Download code from GitHub
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
 
-      # 2. Install Node.js
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20' # Using Node 20 for React 19/Vite 7 support
 
-      # 3. Install dependencies and Build
-      - name: 🔨 Build Project
+      - name: 🔨 Install & Build
         run: |
           npm install
           npm run build
-        # Note: This creates a 'dist' or 'build' folder. 
-        # Vite projects usually make 'dist'. CRA projects make 'build'.
-        # We assume 'dist' below. If your project creates 'build', change it in Step 4.
+        # This runs "tsc -b && vite build" as defined in your package.json
+        # It will create a folder named 'dist'
 
-      # 4. Upload to ProFreeHost via FTP
-      - name: 📂 Sync files
+      - name: 📂 Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/      # CHANGE THIS to ./build/ if you use Create-React-App
-          server-dir: ./htdocs/   # ProFreeHost requires this specific folder
-          protocol: ftp           # 'ftp' is more stable than 'ftps' on free hosts
-          timeout: 30000          # High timeout to prevent disconnects (30 seconds)
-          exclude: |              # Files to NEVER upload
+          local-dir: ./dist/      # Vite outputs to 'dist', so this is correct
+          server-dir: ./htdocs/   # The public folder on ProFreeHost
+          protocol: ftp
+          timeout: 60000          # 60s timeout for slower free hosting connections
+          exclude: |
             **/.git*
             **/.github*
             **/node_modules/**
