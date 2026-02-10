@@ -3,12 +3,18 @@ name: Deploy to ProFreeHost
 on:
   push:
     branches:
-      - main  # Change to 'master' if your main branch is named master
+      - main
 
 jobs:
   web-deploy:
     name: 🎉 Build & Deploy
     runs-on: ubuntu-latest
+    
+    # 1. This tells GitHub: "All 'run' commands happen inside the 'frontend' folder"
+    defaults:
+      run:
+        working-directory: ./frontend
+
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
@@ -16,25 +22,27 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Using Node 20 for React 19/Vite 7 support
+          node-version: '20'
 
       - name: 🔨 Install & Build
         run: |
           npm install
           npm run build
-        # This runs "tsc -b && vite build" as defined in your package.json
-        # It will create a folder named 'dist'
+        # Because of the 'defaults' above, this now runs inside ./frontend
 
       - name: 📂 Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/      # Vite outputs to 'dist', so this is correct
-          server-dir: ./htdocs/   # The public folder on ProFreeHost
+          server: 	ftpupload.net
+          username: 	ezyro_41101949
+          password: e772b0b20095b
+          
+          # 2. IMPORTANT: We updated this path to point to your frontend's dist folder
+          local-dir: ./frontend/dist/ 
+          
+          server-dir: ./htdocs/
           protocol: ftp
-          timeout: 60000          # 60s timeout for slower free hosting connections
+          timeout: 60000
           exclude: |
             **/.git*
             **/.github*
